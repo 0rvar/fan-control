@@ -9,7 +9,7 @@ use esp_idf_hal::peripherals::Peripherals;
 use esp_idf_hal::spi::*;
 use esp_idf_hal::units::FromValueType;
 use mipidsi::interface::SpiInterface;
-use mipidsi::{options::Orientation, Builder};
+use mipidsi::Builder;
 
 // use mipidsi::{Builder, Orientation};
 
@@ -76,9 +76,7 @@ fn main() -> anyhow::Result<()> {
     let mut display = Builder::new(mipidsi::models::ST7789, di)
         .reset_pin(rst)
         .display_size(240, 240)
-        // set default orientation
-        // .orientation(Orientation::Portrait(false))
-        // initialize
+        // .orientation(Orientation::default().rotate(mipidsi::options::Rotation::Deg90))
         .init(&mut delay)
         .unwrap();
 
@@ -91,11 +89,12 @@ fn main() -> anyhow::Result<()> {
     display.clear(Rgb565::BLACK).unwrap();
     ferris.draw(&mut display).unwrap();
 
-    println!("Image printed!");
+    log::info!("Image printed!");
 
     let mut led = PinDriver::output(peripherals.pins.gpio22)?;
 
     loop {
+        log::info!("Blinking LED");
         led.set_high()?;
         // we are sleeping here to make sure the watchdog isn't triggered
         FreeRtos::delay_ms(1000);
