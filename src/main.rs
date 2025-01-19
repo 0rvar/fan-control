@@ -1,6 +1,5 @@
 use config::MODE_3;
 use embedded_graphics::image::*;
-use embedded_graphics::pixelcolor::raw::RawU16;
 use embedded_graphics::pixelcolor::Rgb565;
 use embedded_graphics::prelude::*;
 use esp_idf_hal::delay::Ets;
@@ -11,8 +10,6 @@ use esp_idf_hal::spi::*;
 use esp_idf_hal::units::FromValueType;
 use mipidsi::interface::SpiInterface;
 use mipidsi::Builder;
-
-// use mipidsi::{Builder, Orientation};
 
 fn main() -> anyhow::Result<()> {
     // It is necessary to call this function once. Otherwise some patches to the runtime
@@ -91,24 +88,24 @@ fn main() -> anyhow::Result<()> {
     ferris.draw(&mut display).unwrap();
 
     log::info!("Starting animation");
-    let image = tinygif::Gif::<Rgb565>::from_slice(include_bytes!("leek-spin.gif")).unwrap();
-    loop {
-        log::info!("Reading frames");
-        for frame in image.frames() {
-            log::info!("frame {:?}", frame);
 
-            display.clear(Rgb565::BLACK).unwrap();
-            frame.draw(&mut display).unwrap();
-            log::info!("Drew frame bruv");
-            let delay_ms = frame.delay_centis * 10;
-            log::info!("Delaying for {}ms", delay_ms);
-            FreeRtos::delay_ms(delay_ms.into());
+    // loop {
+    //     log::info!("Reading frames");
+    //     for frame in image.frames() {
+    //         log::info!("frame {:?}", frame);
 
-            // Or, draw at given offset
-            // use embedded_graphics::prelude::DrawTargetExt;
-            // frame.draw(&mut display.translated(Point::new(30, 50))).unwrap();
-        }
-    }
+    //         display.clear(Rgb565::BLACK).unwrap();
+    //         frame.draw(&mut display).unwrap();
+    //         log::info!("Drew frame bruv");
+    //         let delay_ms = frame.delay_centis * 10;
+    //         log::info!("Delaying for {}ms", delay_ms);
+    //         FreeRtos::delay_ms(delay_ms.into());
+
+    //         // Or, draw at given offset
+    //         // use embedded_graphics::prelude::DrawTargetExt;
+    //         // frame.draw(&mut display.translated(Point::new(30, 50))).unwrap();
+    //     }
+    // }
 
     let mut led = PinDriver::output(peripherals.pins.gpio22)?;
 

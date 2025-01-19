@@ -38,6 +38,7 @@
           ];
           inputs = with pkgs; [
             libiconv
+            SDL2
           ];
         in
         {
