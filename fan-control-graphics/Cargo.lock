@@ -285,6 +285,7 @@ name = "fan-control-graphics"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "color_quant",
  "embedded-graphics",
  "embedded-graphics-simulator",
  "embedded-hal",

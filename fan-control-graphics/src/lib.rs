@@ -200,48 +200,43 @@ impl<'a> ImageDrawable for Rgb565Rle<'a> {
 }
 
 fn build_palette(pixels: &[Rgb565], max_colors: usize) -> (Vec<Rgb565>, HashMap<Rgb565, usize>) {
-    let mut color_counts = HashMap::new();
-    for &pixel in pixels {
-        *color_counts.entry(pixel).or_insert(0) += 1;
-    }
-    let colors = {
-        let mut colors: Vec<_> = color_counts.keys().collect();
-        colors.sort_by_key(|&color| color_counts[color]);
-        colors
-    };
-
-    let mut palette = Vec::new();
+    let rgba_pixels = pixels.iter().flat_map(|&color| {
+        let (r, g, b) = rgb565_to_rgb888(color);
+        vec![r, g, b, 255]
+    }).collect::<Vec<_>>();
+    let nq = color_quant::NeuQuant::new(10, max_colors, &rgba_pixels);
+    let indixes: Vec<u8> = rgba_pixels.chunks(4).map(|pix| nq.index_of(pix) as u8).collect();
+    let palette = nq.color_map_rgb().chunks_exact(3).map(|x| {
+        rgb888_to_rgb565(x[0], x[1], x[2])
+    }).collect::<Vec<_>>();
     let mut palette_index_map = HashMap::new();
-
-    for (index, color) in colors.into_iter().enumerate() {
-        if index < max_colors {
-            palette.push(*color);
-            palette_index_map.insert(*color, index);
-            continue;
-        }
-
-        // The palette is full, find the closest color
-        let mut min_distance = f32::INFINITY;
-        let mut best_index = 0;
-        for (i, &palette_color) in palette.iter().enumerate() {
-            let distance = color_distance(*color, palette_color);
-            if distance < min_distance {
-                min_distance = distance;
-                best_index = i;
-            }
-        }
-        palette_index_map.insert(*color, best_index);
+    for (i, color) in pixels.iter().enumerate() {
+        palette_index_map.insert(*color, indixes[i] as usize);
     }
-
     (palette, palette_index_map)
 }
 
-fn color_distance(a: Rgb565, b: Rgb565) -> f32 {
-    let dr = a.r() as f32 - b.r() as f32;
-    let dg = a.g() as f32 - b.g() as f32;
-    let db = a.b() as f32 - b.b() as f32;
+fn rgb888_to_rgb565(r: u8, g: u8, b: u8) -> Rgb565 {
+    // Linear rescaling to maximize color accuracy
+    let r5 = ((r as u16 * 31) / 255) as u8; // 8 bits -> 5 bits (0-31)
+    let g6 = ((g as u16 * 63) / 255) as u8; // 8 bits -> 6 bits (0-63)
+    let b5 = ((b as u16 * 31) / 255) as u8; // 8 bits -> 5 bits (0-31)
 
-    dr * dr + dg * dg + db * db
+    Rgb565::new(r5, g6, b5)
+}
+
+fn rgb565_to_rgb888(color: Rgb565) -> (u8, u8, u8) {
+    // Extract individual components
+    let r5 = color.r(); // 5 bits (0-31)
+    let g6 = color.g(); // 6 bits (0-63)
+    let b5 = color.b(); // 5 bits (0-31)
+
+    // Linear rescaling back to 8 bits
+    let r8 = ((r5 as u16 * 255) / 31) as u8;  // 5 bits -> 8 bits (0-255)
+    let g8 = ((g6 as u16 * 255) / 63) as u8;  // 6 bits -> 8 bits (0-255)
+    let b8 = ((b5 as u16 * 255) / 31) as u8;  // 5 bits -> 8 bits (0-255)
+
+    (r8, g8, b8)
 }
 
 #[cfg(test)]
@@ -251,15 +246,6 @@ mod tests {
     use embedded_graphics_simulator::{OutputSettingsBuilder, SimulatorDisplay};
     use image::GenericImageView;
     use std::fs;
-
-    fn rgb888_to_rgb565(r: u8, g: u8, b: u8) -> Rgb565 {
-        // Linear rescaling to maximize color accuracy
-        let r5 = ((r as u16 * 31) / 255) as u8; // 8 bits -> 5 bits (0-31)
-        let g6 = ((g as u16 * 63) / 255) as u8; // 8 bits -> 6 bits (0-63)
-        let b5 = ((b as u16 * 31) / 255) as u8; // 8 bits -> 5 bits (0-31)
-
-        Rgb565::new(r5, g6, b5)
-    }
 
     #[test]
     fn convert_pngs_to_rle() {
