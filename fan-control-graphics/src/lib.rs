@@ -142,10 +142,33 @@ impl<'a> ImageDrawable for Rgb565Rle<'a> {
         let mut y = 0;
         let mut i = 0;
 
+        let bounding_box = target.bounding_box();
+        let mut offset_x = 0;
+        let mut offset_y = 0;
+        if let Some(corner) = bounding_box.bottom_right() {
+            offset_x = corner.x / 2 - self.width as i32 / 2;
+            offset_y = corner.y / 2 - self.height as i32 / 2;
+        }
+        
+        // Create a buffer to store pixels before drawing
+        let buffer_rows = self.height / 4;
+        let mut pixel_buffer = Vec::with_capacity((self.width * buffer_rows) as usize);
+        let mut current_buffer_row = 0;
+
         while i < self.data.len() {
             if x >= self.width {
                 x = 0;
                 y += 1;
+                current_buffer_row += 1;
+            }
+
+            // Draw buffered pixels if buffer is full or we're at the end of the image
+            if current_buffer_row >= buffer_rows || y >= self.height {
+                if !pixel_buffer.is_empty() {
+                    target.draw_iter(pixel_buffer.iter().cloned())?;
+                    pixel_buffer.clear();
+                    current_buffer_row = 0;
+                }
             }
 
             let packet = self.data[i];
@@ -153,35 +176,40 @@ impl<'a> ImageDrawable for Rgb565Rle<'a> {
             let palette_idx = (packet & 0x7F) as usize;
 
             if palette_idx >= self.palette.len() {
-                break; // Invalid palette index
+                break;
             }
 
             let color = self.palette[palette_idx];
 
             if is_rle {
-                // RLE packet needs an extra byte for count
                 if i + 1 >= self.data.len() {
                     break;
                 }
                 let count = self.data[i + 1] as u32;
-
-                target.draw_iter(
-                    (x..x + count)
-                        .into_iter()
-                        .map(|x| Pixel(Point::new(x as i32, y as i32), color)),
-                )?;
+                
+                // Add RLE pixels to buffer
+                for dx in 0..count {
+                    if x + dx < self.width {
+                        pixel_buffer.push(Pixel(
+                            Point::new((x + dx) as i32 + offset_x, y as i32 + offset_y),
+                            color
+                        ));
+                    }
+                }
 
                 x += count;
                 i += 2;
             } else {
-                // Single pixel
-                target.draw_iter(std::iter::once(Pixel(
-                    Point::new(x as i32, y as i32),
-                    color,
-                )))?;
+                // Add single pixel to buffer
+                pixel_buffer.push(Pixel(Point::new(x as i32 + offset_x, y as i32 + offset_y), color));
                 x += 1;
                 i += 1;
             }
+        }
+
+        // Draw any remaining pixels in the buffer
+        if !pixel_buffer.is_empty() {
+            target.draw_iter(pixel_buffer.iter().cloned())?;
         }
 
         Ok(())

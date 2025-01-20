@@ -6,13 +6,15 @@ resolver = "2"
 rust-version = "1.77"
 version = "0.1.0"
 
+[[example]]
+name = "simulate"
+
 [dependencies]
 anyhow = "1.0.95"
 color_quant = "1.1.0"
 embedded-graphics = "0.8.1"
-embedded-graphics-simulator = "0.7.0"
 embedded-hal = "1.0.0"
 
-# Only for tests
 [dev-dependencies]
+embedded-graphics-simulator = "0.7.0"
 image = "0.25.5"

@@ -51,8 +51,10 @@ fn main() -> anyhow::Result<()> {
 
     // configuring the spi interface, note that in order for the ST7789 to work, the data_mode needs to be set to MODE_3
     let config = config::Config::new()
-        .baudrate(26.MHz().into())
-        .data_mode(MODE_3);
+        .baudrate(50.MHz().into())
+        .data_mode(MODE_3)
+        .write_only(true);
+    let driver_config = SpiDriverConfig::new().dma(Dma::Channel1(8192)); // Try 8KB
 
     let device = SpiDeviceDriver::new_single(
         spi,
@@ -60,7 +62,7 @@ fn main() -> anyhow::Result<()> {
         sda,
         None::<Gpio12>, // Explicitly specify the pin type for SDI/MISO
         None::<Gpio5>,  // Explicitly specify the pin type for CS
-        &SpiDriverConfig::new(),
+        &driver_config,
         &config,
     )?;
 
@@ -74,6 +76,7 @@ fn main() -> anyhow::Result<()> {
     let mut display = Builder::new(mipidsi::models::ST7789, di)
         .reset_pin(rst)
         .display_size(240, 240)
+        .invert_colors(mipidsi::options::ColorInversion::Inverted)
         // .orientation(Orientation::default().rotate(mipidsi::options::Rotation::Deg90))
         .init(&mut delay)
         .unwrap();
@@ -89,33 +92,20 @@ fn main() -> anyhow::Result<()> {
 
     log::info!("Starting animation");
 
-    // loop {
-    //     log::info!("Reading frames");
-    //     for frame in image.frames() {
-    //         log::info!("frame {:?}", frame);
-
-    //         display.clear(Rgb565::BLACK).unwrap();
-    //         frame.draw(&mut display).unwrap();
-    //         log::info!("Drew frame bruv");
-    //         let delay_ms = frame.delay_centis * 10;
-    //         log::info!("Delaying for {}ms", delay_ms);
-    //         FreeRtos::delay_ms(delay_ms.into());
-
-    //         // Or, draw at given offset
-    //         // use embedded_graphics::prelude::DrawTargetExt;
-    //         // frame.draw(&mut display.translated(Point::new(30, 50))).unwrap();
-    //     }
-    // }
-
+    let mut animation = fan_control_graphics::LeekSpin::new();
+    let mut led_toggle = false;
     let mut led = PinDriver::output(peripherals.pins.gpio22)?;
-
+    display.clear(Rgb565::WHITE).unwrap();
     loop {
-        log::info!("Blinking LED");
-        led.set_high()?;
-        // we are sleeping here to make sure the watchdog isn't triggered
-        FreeRtos::delay_ms(1000);
+        animation.render(&mut display).unwrap();
 
-        led.set_low()?;
-        FreeRtos::delay_ms(1000);
+        if led_toggle {
+            led_toggle = false;
+            led.set_high()?;
+        } else {
+            led_toggle = true;
+            led.set_low()?;
+        }
+        FreeRtos::delay_ms(10);
     }
 }
