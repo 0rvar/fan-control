@@ -9,6 +9,9 @@ version = "0.1.0"
 [[example]]
 name = "simulate"
 
+[[example]]
+name = "generate"
+
 [dependencies]
 anyhow = "1.0.95"
 color_quant = "1.1.0"
