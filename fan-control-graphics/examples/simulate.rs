@@ -21,7 +21,6 @@ fn main() {
         fan_rpm: AtomicU32::new(0),
         fan_pwm: AtomicU32::new(0),
         target_rpm: AtomicU32::new(0),
-        control_mode: AtomicU32::new(0),
     });
     update_state(&state, 0, 0);
     let start = std::time::Instant::now();
