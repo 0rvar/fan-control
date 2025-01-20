@@ -11,6 +11,15 @@ pub struct Rgb565Rle<'a> {
     height: u32,
     palette: Vec<Rgb565>,
     data: &'a [u8],
+    y_range: Option<(u32, u32)>,
+}
+impl Rgb565Rle<'_> {
+    pub fn limit(mut self, y_range: (u32, u32)) -> Self {
+        if y_range.0 < y_range.1 {
+            self.y_range = Some(y_range);
+        }
+        self
+    }
 }
 
 impl<'a> Rgb565Rle<'a> {
@@ -41,6 +50,7 @@ impl<'a> Rgb565Rle<'a> {
             height,
             palette,
             data: &data[9 + palette_size * 2..],
+            y_range: None,
         })
     }
 }
@@ -62,16 +72,8 @@ impl<'a> ImageDrawable for Rgb565Rle<'a> {
         let mut y = 0;
         let mut i = 0;
 
-        let bounding_box = target.bounding_box();
-        let mut offset_x = 0;
-        let mut offset_y = 0;
-        if let Some(corner) = bounding_box.bottom_right() {
-            offset_x = corner.x / 2 - self.width as i32 / 2;
-            offset_y = corner.y / 2 - self.height as i32 / 2;
-        }
-
         // Create a buffer to store pixels before drawing
-        let buffer_rows = self.height / 4;
+        let buffer_rows = 32;
         let mut pixel_buffer = Vec::with_capacity((self.width * buffer_rows) as usize);
         let mut current_buffer_row = 0;
 
@@ -79,7 +81,12 @@ impl<'a> ImageDrawable for Rgb565Rle<'a> {
             if x >= self.width {
                 x = 0;
                 y += 1;
-                current_buffer_row += 1;
+                if y >= self.y_range.map_or(self.height, |range| range.0) {
+                    current_buffer_row += 1;
+                }
+            }
+            if (y as u32) >= self.y_range.map_or(self.height, |range| range.1) {
+                break;
             }
 
             // Draw buffered pixels if buffer is full or we're at the end of the image
@@ -109,22 +116,18 @@ impl<'a> ImageDrawable for Rgb565Rle<'a> {
 
                 // Add RLE pixels to buffer
                 for dx in 0..count {
-                    if x + dx < self.width {
-                        pixel_buffer.push(Pixel(
-                            Point::new((x + dx) as i32 + offset_x, y as i32 + offset_y),
-                            color,
-                        ));
+                    if x + dx < self.width && y >= self.y_range.map_or(0, |range| range.0) {
+                        pixel_buffer.push(Pixel(Point::new((x + dx) as i32, y as i32), color));
                     }
                 }
 
                 x += count;
                 i += 2;
             } else {
-                // Add single pixel to buffer
-                pixel_buffer.push(Pixel(
-                    Point::new(x as i32 + offset_x, y as i32 + offset_y),
-                    color,
-                ));
+                if y >= self.y_range.map_or(0, |range| range.0) {
+                    // Add single pixel to buffer
+                    pixel_buffer.push(Pixel(Point::new(x as i32, y as i32), color));
+                }
                 x += 1;
                 i += 1;
             }

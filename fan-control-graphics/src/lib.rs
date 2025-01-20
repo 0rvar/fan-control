@@ -38,7 +38,8 @@ impl Interface {
     where
         D: DrawTarget<Color = Rgb565>,
     {
-        self.animation.render(target, clock_ms)?;
+        let (y_min, y_max) = if clock_ms == 0 { (0, 240) } else { (30, 210) };
+        self.animation.render(target, clock_ms, (y_min, y_max))?;
 
         let top_bg = rgb888_to_rgb565(255u8, 182u8, 140u8);
         {
@@ -55,10 +56,13 @@ impl Interface {
         }
 
         {
-            Rectangle::new(Point::new(0, 210), Size::new(240, 30))
-                .into_styled(PrimitiveStyle::with_fill(top_bg))
-                .draw(target)?;
-            let text_style = MonoTextStyle::new(&PROFONT_14_POINT, Rgb565::BLACK);
+            if clock_ms == 0 {
+                Rectangle::new(Point::new(0, 210), Size::new(240, 30))
+                    .into_styled(PrimitiveStyle::with_fill(top_bg))
+                    .draw(target)?;
+            }
+            let mut text_style = MonoTextStyle::new(&PROFONT_14_POINT, Rgb565::BLACK);
+            text_style.background_color = Some(top_bg);
 
             let target_label = format!(
                 "T: {}RPM",

@@ -72,13 +72,9 @@ fn main() -> anyhow::Result<()> {
         &config,
     )?;
 
-    // display interface abstraction from SPI and DC
     let mut buffer = [0_u8; 2048];
     let di = SpiInterface::new(device, dc, &mut buffer);
 
-    // create driver
-    // let mut display = ST7789::new(di, Some(rst), None, 240, 240);
-    // display.init(&mut delay)?;
     let mut display = Builder::new(mipidsi::models::ST7789, di)
         .reset_pin(rst)
         .display_size(240, 240)
@@ -87,8 +83,6 @@ fn main() -> anyhow::Result<()> {
         .init(&mut delay)
         .unwrap();
 
-    // turn on the backlight
-    // backlight.set_high()?;
     let raw_image_data = ImageRawLE::new(include_bytes!("./ferris.raw"), 86);
     let ferris = Image::with_center(&raw_image_data, Point::new(240 / 2, 240 / 2));
 
@@ -109,9 +103,11 @@ fn main() -> anyhow::Result<()> {
 
     let mut led_toggle = false;
     let mut led = PinDriver::output(peripherals.pins.gpio22)?;
-    display.clear(Rgb565::WHITE).unwrap();
     let start = SystemTime::now();
+    display.clear(Rgb565::WHITE).unwrap();
+    interface.render(&mut display, 0).unwrap();
     loop {
+        let before = SystemTime::now();
         let clock_ms = start.elapsed().unwrap_or_default().as_millis() as u32;
         interface.render(&mut display, clock_ms).unwrap();
 
@@ -122,7 +118,8 @@ fn main() -> anyhow::Result<()> {
             led_toggle = true;
             led.set_low()?;
         }
-        FreeRtos::delay_ms(10);
+        let elapsed_ms = before.elapsed().unwrap_or_default().as_millis();
+        FreeRtos::delay_ms(100u32.saturating_sub(elapsed_ms as u32).max(1));
     }
 }
 
@@ -184,5 +181,7 @@ fn fake_interaction(state: Arc<InterfaceState>) {
 
         let new_rpm = (current_rpm + rpm_change + jitter).round() as u32;
         state.fan_rpm.store(new_rpm, Ordering::Relaxed);
+
+        FreeRtos::delay_ms(100);
     }
 }

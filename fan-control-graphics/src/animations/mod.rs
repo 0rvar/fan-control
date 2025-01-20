@@ -11,7 +11,12 @@ impl LeekSpin {
         Self {}
     }
 
-    pub fn render<D>(&mut self, target: &mut D, clock_ms: u32) -> Result<(), D::Error>
+    pub fn render<D>(
+        &mut self,
+        target: &mut D,
+        clock_ms: u32,
+        y_range: (u32, u32),
+    ) -> Result<(), D::Error>
     where
         D: DrawTarget<Color = Rgb565>,
     {
@@ -23,7 +28,7 @@ impl LeekSpin {
             _ => panic!("Invalid frame index"),
         };
 
-        if let Some(image) = Rgb565Rle::new(compressed_data) {
+        if let Some(image) = Rgb565Rle::new(compressed_data).map(|x| x.limit(y_range)) {
             image.draw(target)?;
         }
 

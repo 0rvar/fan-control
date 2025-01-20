@@ -27,6 +27,8 @@ fn main() {
     let mut last_iteration = std::time::Instant::now();
 
     let mut interface = Interface::new(state.clone());
+    interface.render(&mut display, 0).unwrap();
+    window.update(&mut display);
 
     loop {
         let clock_ms = start.elapsed().as_millis() as u32;
@@ -34,7 +36,6 @@ fn main() {
         last_iteration = std::time::Instant::now();
         update_state(&state, clock_ms, delta_ms);
 
-        display.clear(Rgb565::BLACK).unwrap();
         interface.render(&mut display, clock_ms).unwrap();
         window.update(&mut display);
 
