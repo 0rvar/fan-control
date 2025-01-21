@@ -39,7 +39,12 @@ impl Interface {
         D: DrawTarget<Color = Rgb565>,
     {
         let (y_min, y_max) = if clock_ms == 0 { (0, 240) } else { (30, 210) };
-        self.animation.render(target, clock_ms, (y_min, y_max))?;
+        let rpm = self
+            .state
+            .fan_rpm
+            .load(std::sync::atomic::Ordering::Relaxed);
+        self.animation
+            .render(target, clock_ms, (y_min, y_max), rpm)?;
 
         let top_bg = rgb888_to_rgb565(255u8, 182u8, 140u8);
         {
@@ -72,12 +77,7 @@ impl Interface {
             );
             Text::new(&target_label, Point::new(10, 228), text_style).draw(target)?;
 
-            let pwm_label = format!(
-                "PWM: {: <3}",
-                self.state
-                    .fan_pwm
-                    .load(std::sync::atomic::Ordering::Relaxed)
-            );
+            let pwm_label = format!("PWM: {rpm: <3}",);
             Text::new(&pwm_label, Point::new(150, 228), text_style).draw(target)?;
         }
 

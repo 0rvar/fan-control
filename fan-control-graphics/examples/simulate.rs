@@ -42,7 +42,7 @@ fn main() {
         if window.events().any(|e| e == SimulatorEvent::Quit) {
             return;
         }
-        let delay = 100u64.saturating_sub(delta_ms as u64).max(1);
+        let delay = 10u64.saturating_sub(delta_ms as u64).max(1);
         std::thread::sleep(std::time::Duration::from_millis(delay));
     }
 }
@@ -52,7 +52,7 @@ fn update_state(state: &Arc<InterfaceState>, clock_ms: u32, delta_ms: u32) {
     let delta_s = delta_ms as f32 / 1000.0;
 
     // Define fan speed presets (RPM)
-    const SPEED_PRESETS: [u32; 3] = [800, 1400, 2100];
+    const SPEED_PRESETS: [u32; 3] = [800, 1400, 2400];
 
     // Time between target changes (seconds)
     const TARGET_CHANGE_INTERVAL: f32 = 6.0;
@@ -69,7 +69,7 @@ fn update_state(state: &Arc<InterfaceState>, clock_ms: u32, delta_ms: u32) {
     // Calculate base PWM for target RPM (assume linear relationship)
     // Maximum RPM (2400) should correspond to PWM 100%
     const MAX_RPM: f32 = 2400.0;
-    let target_pwm = (target_rpm / MAX_RPM * 100.0).clamp(20.0, 100.0);
+    let target_pwm = (target_rpm / MAX_RPM * 100.0).clamp(0.0, 100.0);
 
     // Get current PWM
     let current_pwm = state.fan_pwm.load(Ordering::Relaxed) as f32;

@@ -91,8 +91,8 @@ fn main() -> anyhow::Result<()> {
     ferris.draw(&mut display).unwrap();
 
     let state = Arc::new(InterfaceState {
-        fan_pwm: AtomicU32::new(0),
         fan_rpm: AtomicU32::new(0),
+        fan_pwm: AtomicU32::new(0),
         target_rpm: AtomicU32::new(0),
     });
     let mut interface = fan_control_graphics::Interface::new(state.clone());
@@ -101,8 +101,9 @@ fn main() -> anyhow::Result<()> {
         fake_interaction(state);
     });
 
-    let mut led_toggle = false;
-    let mut led = PinDriver::output(peripherals.pins.gpio22)?;
+    // let mut led_toggle = false;
+    // let mut led = PinDriver::output(peripherals.pins.gpio22)?;
+    let mut timings = Vec::with_capacity(100);
     let start = SystemTime::now();
     display.clear(Rgb565::WHITE).unwrap();
     interface.render(&mut display, 0).unwrap();
@@ -119,7 +120,20 @@ fn main() -> anyhow::Result<()> {
         //     led.set_low()?;
         // }
         let elapsed_ms = before.elapsed().unwrap_or_default().as_millis();
-        FreeRtos::delay_ms(50u32.saturating_sub(elapsed_ms as u32).max(1));
+        timings.push(elapsed_ms);
+        if timings.len() >= 100 {
+            timings.sort();
+            let sum: u128 = timings.iter().sum();
+            let avg = sum / timings.len() as u128;
+            let min = timings[0];
+            let max = timings[timings.len() - 1];
+            let p50 = timings[timings.len() / 2];
+            let p90 = timings[(timings.len() as f32 * 0.9) as usize];
+            let p99 = timings[(timings.len() as f32 * 0.99) as usize];
+            log::info!("Average render timings:\n * min: {min}ms\n * max: {max}\n * avg: {avg}ms\n * p50: {p50}ms\n * p90: {p90}ms\n * p99: {p99}ms");
+            timings.clear();
+        }
+        FreeRtos::delay_ms(10);
     }
 }
 
