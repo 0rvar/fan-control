@@ -44,7 +44,7 @@ impl Interface {
         let top_bg = rgb888_to_rgb565(255u8, 182u8, 140u8);
         {
             let rpm_label = format!(
-                "{} RPM",
+                "{: >4} RPM",
                 self.state
                     .fan_rpm
                     .load(std::sync::atomic::Ordering::Relaxed)
@@ -65,7 +65,7 @@ impl Interface {
             text_style.background_color = Some(top_bg);
 
             let target_label = format!(
-                "T: {}RPM",
+                "T: {: <4}RPM",
                 self.state
                     .target_rpm
                     .load(std::sync::atomic::Ordering::Relaxed)
@@ -73,7 +73,7 @@ impl Interface {
             Text::new(&target_label, Point::new(10, 228), text_style).draw(target)?;
 
             let pwm_label = format!(
-                "PWM: {}%",
+                "PWM: {: <3}",
                 self.state
                     .fan_pwm
                     .load(std::sync::atomic::Ordering::Relaxed)

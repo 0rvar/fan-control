@@ -57,10 +57,10 @@ fn main() -> anyhow::Result<()> {
 
     // configuring the spi interface, note that in order for the ST7789 to work, the data_mode needs to be set to MODE_3
     let config = config::Config::new()
-        .baudrate(50.MHz().into())
+        .baudrate(60.MHz().into()) // Absolute max before the display won't be driven anymore
         .data_mode(MODE_3)
         .write_only(true);
-    let driver_config = SpiDriverConfig::new().dma(Dma::Channel1(8192)); // Try 8KB
+    let driver_config = SpiDriverConfig::new().dma(Dma::Channel1(1024 * 32));
 
     let device = SpiDeviceDriver::new_single(
         spi,
@@ -111,15 +111,15 @@ fn main() -> anyhow::Result<()> {
         let clock_ms = start.elapsed().unwrap_or_default().as_millis() as u32;
         interface.render(&mut display, clock_ms).unwrap();
 
-        if led_toggle {
-            led_toggle = false;
-            led.set_high()?;
-        } else {
-            led_toggle = true;
-            led.set_low()?;
-        }
+        // if led_toggle {
+        //     led_toggle = false;
+        //     led.set_high()?;
+        // } else {
+        //     led_toggle = true;
+        //     led.set_low()?;
+        // }
         let elapsed_ms = before.elapsed().unwrap_or_default().as_millis();
-        FreeRtos::delay_ms(100u32.saturating_sub(elapsed_ms as u32).max(1));
+        FreeRtos::delay_ms(50u32.saturating_sub(elapsed_ms as u32).max(1));
     }
 }
 

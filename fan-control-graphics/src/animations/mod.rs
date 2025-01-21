@@ -4,11 +4,13 @@ use embedded_graphics::prelude::*;
 
 use crate::rley::Rgb565Rle;
 
-pub struct LeekSpin {}
+pub struct LeekSpin {
+    next_frame: u8,
+}
 
 impl LeekSpin {
     pub fn new() -> Self {
-        Self {}
+        Self { next_frame: 0 }
     }
 
     pub fn render<D>(
@@ -20,7 +22,7 @@ impl LeekSpin {
     where
         D: DrawTarget<Color = Rgb565>,
     {
-        let compressed_data: &[u8] = match (clock_ms / 100) % 4 {
+        let compressed_data: &[u8] = match self.next_frame {
             0 => include_bytes!("./leek_spin-0.rle"),
             1 => include_bytes!("./leek_spin-1.rle"),
             2 => include_bytes!("./leek_spin-2.rle"),
@@ -31,6 +33,7 @@ impl LeekSpin {
         if let Some(image) = Rgb565Rle::new(compressed_data).map(|x| x.limit(y_range)) {
             image.draw(target)?;
         }
+        self.next_frame = (self.next_frame + 1) % 4;
 
         Ok(())
     }

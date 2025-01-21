@@ -2,7 +2,7 @@ use embedded_graphics::{
     image::ImageDrawable,
     pixelcolor::{raw::RawU16, Rgb565},
     prelude::{DrawTarget, OriginDimensions, Point, Size},
-    Pixel,
+    primitives::Rectangle,
 };
 
 #[derive(Debug)]
@@ -60,7 +60,6 @@ impl OriginDimensions for Rgb565Rle<'_> {
         Size::new(self.width, self.height)
     }
 }
-
 impl<'a> ImageDrawable for Rgb565Rle<'a> {
     type Color = Rgb565;
 
@@ -72,30 +71,19 @@ impl<'a> ImageDrawable for Rgb565Rle<'a> {
         let mut y = 0;
         let mut i = 0;
 
-        // Create a buffer to store pixels before drawing
-        let buffer_rows = 32;
-        let mut pixel_buffer = Vec::with_capacity((self.width * buffer_rows) as usize);
-        let mut current_buffer_row = 0;
+        // Pre-allocate a single large buffer for the entire frame
+        let buffer_rows = 64usize;
+        let buffer_limit = self.width as usize * buffer_rows;
+        let mut buffer_row_start = 0;
+        let mut pixel_buffer = Vec::with_capacity(buffer_limit);
 
         while i < self.data.len() {
             if x >= self.width {
                 x = 0;
                 y += 1;
-                if y >= self.y_range.map_or(self.height, |range| range.0) {
-                    current_buffer_row += 1;
-                }
             }
-            if (y as u32) >= self.y_range.map_or(self.height, |range| range.1) {
+            if y >= self.y_range.map_or(self.height, |range| range.1) {
                 break;
-            }
-
-            // Draw buffered pixels if buffer is full or we're at the end of the image
-            if current_buffer_row >= buffer_rows || y >= self.height {
-                if !pixel_buffer.is_empty() {
-                    target.draw_iter(pixel_buffer.iter().cloned())?;
-                    pixel_buffer.clear();
-                    current_buffer_row = 0;
-                }
             }
 
             let packet = self.data[i];
@@ -114,28 +102,52 @@ impl<'a> ImageDrawable for Rgb565Rle<'a> {
                 }
                 let count = self.data[i + 1] as u32;
 
-                // Add RLE pixels to buffer
-                for dx in 0..count {
-                    if x + dx < self.width && y >= self.y_range.map_or(0, |range| range.0) {
-                        pixel_buffer.push(Pixel(Point::new((x + dx) as i32, y as i32), color));
+                // Add RLE pixels in bulk
+                if y >= self.y_range.map_or(0, |range| range.0) {
+                    if pixel_buffer.len() < 1 {
+                        buffer_row_start = y;
                     }
+                    pixel_buffer.extend((0..count).map(|_| color));
                 }
 
                 x += count;
                 i += 2;
             } else {
                 if y >= self.y_range.map_or(0, |range| range.0) {
-                    // Add single pixel to buffer
-                    pixel_buffer.push(Pixel(Point::new(x as i32, y as i32), color));
+                    if pixel_buffer.len() < 1 {
+                        buffer_row_start = y;
+                    }
+                    pixel_buffer.push(color);
                 }
                 x += 1;
                 i += 1;
             }
+
+            // Draw in larger batches instead of tiny ones
+            if pixel_buffer.len() >= buffer_limit {
+                target.fill_contiguous(
+                    &Rectangle::new(
+                        Point::new(0, buffer_row_start as i32),
+                        Size::new(self.width, buffer_rows as u32),
+                    ),
+                    pixel_buffer.iter().cloned(),
+                )?;
+                pixel_buffer.clear();
+            }
         }
 
-        // Draw any remaining pixels in the buffer
+        // Draw any remaining pixels
         if !pixel_buffer.is_empty() {
-            target.draw_iter(pixel_buffer.iter().cloned())?;
+            target.fill_contiguous(
+                &Rectangle::new(
+                    Point::new(0, buffer_row_start as i32),
+                    Size::new(
+                        self.width,
+                        (buffer_rows as u32).min(self.height - buffer_row_start as u32),
+                    ),
+                ),
+                pixel_buffer.iter().cloned(),
+            )?;
         }
 
         Ok(())
