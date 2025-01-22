@@ -9,7 +9,7 @@ Initially generated from [the esp-rs/esp-idf template](https://github.com/esp-rs
 ## Get up and running
 
 1. direnv allow
-2. cargo install espup ldproxy espflash cargo-espflash
+2. cargo install espup 
 3. espup install
 4. cargo run
 
