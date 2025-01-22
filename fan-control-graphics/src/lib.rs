@@ -1,4 +1,7 @@
-use std::sync::{atomic::AtomicU32, Arc};
+use std::{
+    sync::{atomic::AtomicU32, Arc},
+    time::SystemTime,
+};
 
 use animations::LeekSpin;
 use color::rgb888_to_rgb565;
@@ -24,6 +27,7 @@ pub struct InterfaceState {
 pub struct Interface {
     state: Arc<InterfaceState>,
     animation: LeekSpin,
+    boot_time: SystemTime,
 }
 
 impl Interface {
@@ -31,6 +35,7 @@ impl Interface {
         Self {
             state,
             animation: LeekSpin::new(),
+            boot_time: SystemTime::now(),
         }
     }
 
@@ -69,18 +74,49 @@ impl Interface {
             let mut text_style = MonoTextStyle::new(&PROFONT_14_POINT, Rgb565::BLACK);
             text_style.background_color = Some(top_bg);
 
-            let target_label = format!(
-                "T: {: <4}RPM",
-                self.state
-                    .target_rpm
-                    .load(std::sync::atomic::Ordering::Relaxed)
-            );
+            let target_rpm = self
+                .state
+                .target_rpm
+                .load(std::sync::atomic::Ordering::Relaxed);
+            let target_label = format!("T: {target_rpm: <4}");
             Text::new(&target_label, Point::new(10, 228), text_style).draw(target)?;
 
-            let pwm_label = format!("PWM: {rpm: <3}",);
-            Text::new(&pwm_label, Point::new(150, 228), text_style).draw(target)?;
+            let uptime = self.boot_time.elapsed().unwrap().as_secs();
+            let uptime_label = format_uptime_secs(uptime);
+            Text::new(&uptime_label, Point::new(104, 228), text_style).draw(target)?;
+
+            let pwm = self
+                .state
+                .fan_pwm
+                .load(std::sync::atomic::Ordering::Relaxed);
+            let pwm_label = format!("PWM:{pwm: >3}");
+            Text::new(&pwm_label, Point::new(160, 228), text_style).draw(target)?;
         }
 
         Ok(())
     }
+}
+
+fn format_uptime_secs(secs: u64) -> String {
+    if secs < 60 {
+        return format!("{secs:02}s");
+    }
+    let minutes = secs / 60;
+    if minutes < 60 {
+        return format!("{minutes: >2}m");
+    }
+    let hours = minutes / 60;
+    if hours < 24 {
+        return format!("{hours: >2}h");
+    }
+    let days = hours / 24;
+    if days < 7 {
+        return format!("{days: >2}d");
+    }
+    let weeks = days / 7;
+    if weeks < 52 {
+        return format!("{weeks: >2}w");
+    }
+    let years = weeks / 52;
+    format!("{years: <2}y")
 }
