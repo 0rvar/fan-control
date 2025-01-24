@@ -72,7 +72,7 @@ impl<'a> ImageDrawable for Rgb565Rle<'a> {
         let mut i = 0;
 
         // Pre-allocate a single large buffer for the entire frame
-        let buffer_rows = 64usize;
+        let buffer_rows = 16usize;
         let buffer_limit = self.width as usize * buffer_rows;
         let mut buffer_row_start = 0;
         let mut pixel_buffer = Vec::with_capacity(buffer_limit);
