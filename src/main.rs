@@ -8,6 +8,7 @@ use screen::ScreenBuilder;
 use threads::EspThread;
 
 mod fake_interaction;
+mod rotary_encoder;
 mod screen;
 mod threads;
 
@@ -36,10 +37,17 @@ fn main() -> anyhow::Result<()> {
 
     let state = Arc::new(InterfaceState {
         fan_rpm: AtomicU32::new(0),
-        fan_pwm: AtomicU32::new(0),
+        fan_pwm: AtomicU32::new(50),
         target_rpm: AtomicU32::new(0),
     });
     let interface = fan_control_graphics::Interface::new(state.clone());
+
+    let dt = peripherals.pins.gpio33;
+    let clk = peripherals.pins.gpio32;
+    let pcnt = peripherals.pcnt0;
+    let state_clone = state.clone();
+    let rotary_encoder_thread = EspThread::new("rotary_encoder::rotary_encoder_thread")
+        .spawn(move || rotary_encoder::rotary_encoder_thread(pcnt, clk, dt, state_clone));
 
     log::info!("Spawning fake interaction thread");
     let interaction_thread = EspThread::new("fake_interaction::fake_interaction_loop")
@@ -54,5 +62,6 @@ fn main() -> anyhow::Result<()> {
 
     interaction_thread.join().unwrap();
     render_thread.join().unwrap();
+    rotary_encoder_thread.join().unwrap();
     Ok(())
 }

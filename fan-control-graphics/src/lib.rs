@@ -89,6 +89,7 @@ impl Interface {
                 .state
                 .fan_pwm
                 .load(std::sync::atomic::Ordering::Relaxed);
+            let pwm = pwm - (pwm % 5);
             let pwm_label = format!("PWM:{pwm: >3}");
             Text::new(&pwm_label, Point::new(160, 228), text_style).draw(target)?;
         }
