@@ -1,19 +1,19 @@
 use std::thread::JoinHandle;
 
-use esp_idf_hal::{cpu::Core, task::thread::ThreadSpawnConfiguration};
+use esp_idf_hal::cpu::Core;
 
 pub struct EspThread {
-    name: &'static [u8],
+    name: &'static str,
     stack_kb: usize,
     priority: u8,
     pin_to_core: Option<Core>,
 }
 impl EspThread {
-    pub fn new(name: &'static [u8]) -> Self {
+    pub fn new(name: &'static str) -> Self {
         Self {
             name,
             stack_kb: 4,
-            priority: 5,
+            priority: 10,
             pin_to_core: None,
         }
     }
@@ -39,20 +39,43 @@ impl EspThread {
             priority,
             pin_to_core,
         } = self;
-        ThreadSpawnConfiguration {
-            name: Some(name),
-            stack_size: stack_kb * 1024,
-            priority,
-            pin_to_core,
-            ..Default::default()
-        }
-        .set()
-        .unwrap();
 
-        let handle = std::thread::Builder::new().spawn(func).unwrap();
+        // ThreadSpawnConfiguration does _nothing_
+        // ThreadSpawnConfiguration {
+        //     name: Some(name),
+        //     stack_size: stack_kb * 1024,
+        //     priority,
+        //     pin_to_core,
+        //     ..Default::default()
+        // }
+        // .set()
+        // .unwrap();
 
-        ThreadSpawnConfiguration::default().set().unwrap();
+        let handle = std::thread::Builder::new()
+            .name(name.to_string())
+            .stack_size(stack_kb * 1024)
+            .spawn(move || {
+                let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(func));
+                if let Err(err) = result {
+                    log::error!("Thread panicked: {:?}", err);
+                }
+            })
+            .unwrap();
+
+        // ThreadSpawnConfiguration::default().set().unwrap();
 
         handle
     }
+}
+
+pub fn debug_dump_stack_info() {
+    let task_name =
+        unsafe { std::ffi::CStr::from_ptr(esp_idf_hal::sys::pcTaskGetName(std::ptr::null_mut())) }
+            .to_string_lossy();
+
+    let free_stack = unsafe { esp_idf_hal::sys::uxTaskGetStackHighWaterMark(std::ptr::null_mut()) };
+    log::info!("[{task_name}] Free stack: {free_stack}b");
+
+    let free_heap = unsafe { esp_idf_hal::sys::xPortGetFreeHeapSize() };
+    log::info!("[{task_name}] Free heap: {free_heap}b");
 }

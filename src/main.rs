@@ -2,7 +2,6 @@ use std::sync::atomic::AtomicU32;
 use std::sync::Arc;
 
 use anyhow::Context;
-use esp_idf_hal::cpu::Core;
 use esp_idf_hal::peripherals::Peripherals;
 use fan_control_graphics::InterfaceState;
 use screen::ScreenBuilder;
@@ -42,12 +41,15 @@ fn main() -> anyhow::Result<()> {
     });
     let interface = fan_control_graphics::Interface::new(state.clone());
 
-    let interaction_thread = EspThread::new(b"fake_interaction::fake_interaction_loop\0")
+    log::info!("Spawning fake interaction thread");
+    let interaction_thread = EspThread::new("fake_interaction::fake_interaction_loop")
         .spawn(move || fake_interaction::fake_interaction_loop(state));
 
-    let render_thread = EspThread::new(b"screen::render_loop\0")
-        .with_stack_size(100)
-        .pin_to_core(Core::Core1)
+    log::info!("Spawning render thread");
+    let render_thread = EspThread::new("screen::render_loop")
+        .with_stack_size(16)
+        // .pin_to_core(Core::Core1)
+        .with_priority(15)
         .spawn(move || screen::render_loop(interface, screen));
 
     interaction_thread.join().unwrap();

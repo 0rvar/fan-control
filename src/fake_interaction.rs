@@ -4,7 +4,10 @@ use std::time::SystemTime;
 use esp_idf_hal::delay::FreeRtos;
 use fan_control_graphics::InterfaceState;
 
+use crate::threads::debug_dump_stack_info;
+
 pub fn fake_interaction_loop(state: Arc<InterfaceState>) {
+    debug_dump_stack_info();
     let start = SystemTime::now();
     let mut last_iteration = SystemTime::now();
     loop {

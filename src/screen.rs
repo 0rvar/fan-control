@@ -10,6 +10,8 @@ use esp_idf_hal::units::FromValueType;
 use fan_control_graphics::Interface;
 use mipidsi::interface::SpiInterface;
 
+use crate::threads::debug_dump_stack_info;
+
 pub struct ScreenBuilder {
     pub spi: SPI2,
     pub rst: Gpio4,
@@ -69,23 +71,30 @@ pub struct Screen {
 }
 
 pub fn render_loop<'a>(mut interface: Interface, screen: Screen) {
-    let mut delay = Ets;
+    debug_dump_stack_info();
 
     let Screen { device, dc, rst } = screen;
 
+    log::info!("Creating screen buffer");
     let mut buffer = [0_u8; 2048];
+
+    log::info!("Initializing display SPI");
     let di = SpiInterface::new(device, dc, &mut buffer);
 
+    log::info!("Initializing mipidsi display");
     let mut display = mipidsi::Builder::new(mipidsi::models::ST7789, di)
         .reset_pin(rst)
         .display_size(240, 240)
         .invert_colors(mipidsi::options::ColorInversion::Inverted)
         // .orientation(Orientation::default().rotate(mipidsi::options::Rotation::Deg90))
-        .init(&mut delay)
+        .init(&mut Ets)
         .unwrap();
 
-    display.clear(Rgb565::BLACK).unwrap();
+    log::info!("Allocating timings vector");
     let mut timings = Vec::with_capacity(100);
+
+    log::info!("Clearing display and starting render loop");
+    display.clear(Rgb565::BLACK).unwrap();
     let start = SystemTime::now();
     display.clear(Rgb565::WHITE).unwrap();
     interface.render(&mut display, 0).unwrap();
