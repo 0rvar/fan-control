@@ -1,2 +1,2 @@
 [connection]
-serial = "/dev/cu.usbserial-1140"
+serial = "/dev/cu.usbserial-140"

@@ -39,11 +39,17 @@
           inputs = with pkgs; [
             libiconv
             SDL2
+            curlMinimal
+          ];
+          optionalInputs = pkgs.lib.optionals pkgs.stdenv.isDarwin [
+            # Needed for libgit2 when doing `cargo install cargo-espflash`
+            pkgs.darwin.apple_sdk.frameworks.Security
+            pkgs.darwin.apple_sdk.frameworks.SystemConfiguration
           ];
         in
         {
           default = pkgs.mkShell {
-            buildInputs = tools ++ inputs;
+            buildInputs = tools ++ inputs ++ optionalInputs;
             shellHook = ''
               export LIBCLANG_PATH="$HOME/.rustup/toolchains/esp/xtensa-esp32-elf-clang/esp-18.1.2_20240912/esp-clang/lib"
               export PATH="$HOME/.rustup/toolchains/esp/xtensa-esp-elf/esp-14.2.0_20240906/xtensa-esp-elf/bin:$PATH"
