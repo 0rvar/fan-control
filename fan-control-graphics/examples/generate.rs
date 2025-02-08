@@ -81,6 +81,8 @@ fn build_palette(pixels: &[Rgb565], max_colors: usize) -> (Vec<Rgb565>, HashMap<
 }
 
 fn main() {
+    // Step 0: create tmp dir if not exists
+    fs::create_dir_all("src/animations/tmp").expect("Failed to create tmp dir");
     // Step 1: generate pngs from gif
     std::process::Command::new("convert")
         .args(&[
@@ -92,15 +94,15 @@ fn main() {
             "remove",
             "-alpha",
             "off",
-            "leek_spin-%d.png",
+            "tmp/leek_spin-%d.png",
         ])
         .current_dir("src/animations")
         .output()
         .expect("Failed to convert GIF to PNG");
     for i in 0..4 {
-        let png_path = format!("src/animations/leek_spin-{}.png", i);
+        let png_path = format!("src/animations/tmp/leek_spin-{}.png", i);
         let rle_path = format!("src/animations/leek_spin-{}.rle", i);
-        let roundtrip_path = format!("src/animations/leek_spin-{}-roundtrip.png", i);
+        let roundtrip_path = format!("src/animations/tmp/leek_spin-{}-roundtrip.png", i);
 
         // Read original PNG and convert to RGB565 pixels
         let img = image::open(&png_path).expect("Failed to read PNG file");
