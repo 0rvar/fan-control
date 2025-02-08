@@ -11,6 +11,7 @@ mod fake_interaction;
 mod pwm;
 mod rotary_encoder;
 mod screen;
+mod tacho;
 mod threads;
 
 fn main() -> anyhow::Result<()> {
@@ -50,15 +51,23 @@ fn main() -> anyhow::Result<()> {
     let rotary_encoder_thread = EspThread::new("rotary_encoder::rotary_encoder_thread")
         .spawn(move || rotary_encoder::rotary_encoder_thread(pcnt, clk, dt, state_clone));
 
-    let pwm = pwm::PwmControl::new(peripherals.ledc, peripherals.pins.gpio25)
+    let pcnt = peripherals.pcnt1;
+    let pin = peripherals.pins.gpio27;
+    let tacho = tacho::Tacho::new(pcnt, pin).context("Failed to initialize tacho")?;
+    let state_clone = state.clone();
+    let tacho_thread =
+        EspThread::new("tacho::tacho_thread").spawn(move || tacho::tacho_loop(state_clone, tacho));
+
+    let ledc = peripherals.ledc;
+    let pwm = pwm::PwmControl::new(ledc.timer0, ledc.channel0, peripherals.pins.gpio26)
         .context("Failed to initialize PWM control")?;
     let state_clone = state.clone();
     let pwm_thread = EspThread::new("pwm::pwm_control_thread")
         .spawn(move || pwm::pwm_control_thread(pwm, state_clone));
 
-    log::info!("Spawning fake interaction thread");
-    let interaction_thread = EspThread::new("fake_interaction::fake_interaction_loop")
-        .spawn(move || fake_interaction::fake_interaction_loop(state));
+    // log::info!("Spawning fake interaction thread");
+    // let interaction_thread = EspThread::new("fake_interaction::fake_interaction_loop")
+    //     .spawn(move || fake_interaction::fake_interaction_loop(state));
 
     log::info!("Spawning render thread");
     let render_thread = EspThread::new("screen::render_loop")
@@ -67,9 +76,10 @@ fn main() -> anyhow::Result<()> {
         .with_priority(15)
         .spawn(move || screen::render_loop(interface, screen));
 
-    interaction_thread.join().unwrap();
+    // interaction_thread.join().unwrap();
     render_thread.join().unwrap();
     rotary_encoder_thread.join().unwrap();
     pwm_thread.join().unwrap();
+    tacho_thread.join().unwrap();
     Ok(())
 }

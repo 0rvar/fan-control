@@ -45,8 +45,8 @@ impl LeekSpin {
 
         // We want the speed to depend on the RPM
         // 0 RPM = 300ms per frame
-        // 2100+ rpm = 90ms per frame
-        let rpm_percent = (rpm as f32 / 2100.0).clamp(0.0, 1.0);
+        // 2000+ rpm = 90ms per frame
+        let rpm_percent = (rpm as f32 / 2000.0).clamp(0.0, 1.0);
         let frame_delay = (1000.0 - 910.0 * rpm_percent) as u32;
 
         self.next_frame_at_ms = clock_ms + frame_delay;

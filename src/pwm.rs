@@ -10,24 +10,42 @@ pub struct PwmControl {
     channel: LedcDriver<'static>,
 }
 
+/// PWM resolution used for fan control.
+///
+/// Using 10-bit resolution (2^10 - 1 = 1023) gives us:
+/// - Good granularity for fan speed control (1024 steps)
+/// - Compatible with the standard 25kHz frequency for PC fans
+/// - Duty cycle converts from 0-100% to 0-1023:
+///   - 0%   = 0 (constant LOW, fan at full speed)
+///   - 100% = 1023 (constant HIGH, fan stopped)
+const RESOLUTION: Resolution = Resolution::Bits10;
+
 impl PwmControl {
-    pub fn new(ledc: LEDC, pin: impl Peripheral<P = impl OutputPin> + 'static) -> Result<Self> {
+    pub fn new(
+        timer: TIMER0,
+        channel: CHANNEL0,
+        pin: impl Peripheral<P = impl OutputPin> + 'static,
+    ) -> Result<Self> {
         // Configure timer for 25kHz operation (standard for PC fans)
         let timer_config = config::TimerConfig::new()
             .frequency(25.kHz().into())
-            .resolution(Resolution::Bits10);
+            .resolution(RESOLUTION);
 
-        let timer = LedcTimerDriver::new(ledc.timer0, &timer_config)?;
+        let timer = LedcTimerDriver::new(timer, &timer_config)?;
 
         // Configure channel
-        let channel = LedcDriver::new(ledc.channel0, timer, pin)?;
+        let channel = LedcDriver::new(channel, timer, pin)?;
 
         Ok(Self { channel })
     }
 
     pub fn set_duty(&mut self, percent: u32) -> Result<()> {
+        const RESOLUTION_MAX_VALUE: u32 = 2u32.pow(RESOLUTION.bits() as u32) - 1;
+        // Invert percentage to match fan speed (0% = full speed, 100% = stopped)
+        // When we pull pin high, it uses a transistor to pull the pwm line down
+        let percent = (100 - percent).clamp(0, 100);
         // Convert percentage (0-100) to duty cycle value (0-1023 for 10-bit resolution)
-        let duty = ((percent as u32) * 1023) / 100;
+        let duty = ((percent as u32) * RESOLUTION_MAX_VALUE) / 100;
         self.channel.set_duty(duty)?;
         Ok(())
     }
