@@ -1,0 +1,21 @@
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+name: bloat
+
+jobs:
+  cargo_bloat:
+    runs-on: xtensa-latest
+    steps:
+      - uses: actions/checkout@master
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - name: Run cargo bloat
+        uses: orf/cargo-bloat-action@a4d9d71e47296bf4fdba433f6f0b54d7f3cf3ff0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
