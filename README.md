@@ -1,15 +1,23 @@
 # ESP fan control
 
-ESP32 based fan control with a silly GUI, using embedded-graphics
+ESP32 based fan control with a silly GUI, using embedded-graphics.
 
 Initially generated from [the esp-rs/esp-idf template](https://github.com/esp-rs/esp-idf-template) ([documented here](https://docs.esp-rs.org/book/writing-your-own-application/generate-project/esp-idf-template.html)).
 
 <img alt="Breadboard photo" src="./assets/breadboard.png" width="200" />
 
+## Features
+
+- PWM fan control
+- Fan rpm measurement from tacho wire
+- Change pwm duty cycle with rotary knob
+- Screen that shows rpm, pwm etc and a silly animation that changes speed based on the rpm
+- Allow querying values and changing PWM duty cycle over http
+
 ## Get up and running
 
 1. direnv allow
-2. cargo install espup 
+2. cargo install espup
 3. espup install
 4. cargo run
 
