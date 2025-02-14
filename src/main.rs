@@ -1,4 +1,3 @@
-use std::sync::atomic::AtomicU32;
 use std::sync::Arc;
 
 use anyhow::Context;
@@ -7,12 +6,12 @@ use fan_control_graphics::InterfaceState;
 use screen::ScreenBuilder;
 use threads::EspThread;
 
-mod fake_interaction;
 mod pwm;
 mod rotary_encoder;
 mod screen;
 mod tacho;
 mod threads;
+mod wifi_control;
 
 fn main() -> anyhow::Result<()> {
     // It is necessary to call this function once. Otherwise some patches to the runtime
@@ -37,11 +36,7 @@ fn main() -> anyhow::Result<()> {
     .build()
     .context("Failed to initialize screen")?;
 
-    let state = Arc::new(InterfaceState {
-        fan_rpm: AtomicU32::new(0),
-        fan_pwm: AtomicU32::new(50),
-        target_rpm: AtomicU32::new(0),
-    });
+    let state = Arc::new(InterfaceState::with_initial_pwm(50));
     let interface = fan_control_graphics::Interface::new(state.clone());
 
     let dt = peripherals.pins.gpio33;
@@ -65,18 +60,14 @@ fn main() -> anyhow::Result<()> {
     let pwm_thread = EspThread::new("pwm::pwm_control_thread")
         .spawn(move || pwm::pwm_control_thread(pwm, state_clone));
 
-    // log::info!("Spawning fake interaction thread");
-    // let interaction_thread = EspThread::new("fake_interaction::fake_interaction_loop")
-    //     .spawn(move || fake_interaction::fake_interaction_loop(state));
-
     log::info!("Spawning render thread");
     let render_thread = EspThread::new("screen::render_loop")
         .with_stack_size(16)
-        // .pin_to_core(Core::Core1)
-        .with_priority(15)
         .spawn(move || screen::render_loop(interface, screen));
 
-    // interaction_thread.join().unwrap();
+    let wifi_thread = wifi_control::spawn_wifi_control_thread(state, peripherals.modem);
+
+    wifi_thread.join().unwrap();
     render_thread.join().unwrap();
     rotary_encoder_thread.join().unwrap();
     pwm_thread.join().unwrap();

@@ -19,11 +19,30 @@ pub mod animations;
 pub mod color;
 pub mod rley;
 
+#[derive(Debug, Default)]
 pub struct InterfaceState {
     pub fan_rpm: AtomicU32,
     pub fan_pwm: AtomicU32,
-    pub target_rpm: AtomicU32,
+    pub changed_via: InterfaceControlSource,
 }
+
+impl InterfaceState {
+    pub fn with_initial_pwm(pwm: u32) -> Self {
+        Self {
+            fan_pwm: AtomicU32::new(pwm),
+            ..Default::default()
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum InterfaceControlSource {
+    #[default]
+    None,
+    Wifi,
+    RotaryEncoder,
+}
+
 pub struct Interface {
     state: Arc<InterfaceState>,
     animation: LeekSpin,
@@ -74,16 +93,17 @@ impl Interface {
             let mut text_style = MonoTextStyle::new(&PROFONT_14_POINT, Rgb565::BLACK);
             text_style.background_color = Some(top_bg);
 
-            let target_rpm = self
-                .state
-                .target_rpm
-                .load(std::sync::atomic::Ordering::Relaxed);
-            let target_label = format!("T: {target_rpm: <4}");
-            Text::new(&target_label, Point::new(10, 228), text_style).draw(target)?;
+            let source = match self.state.changed_via {
+                InterfaceControlSource::None => "Boot",
+                InterfaceControlSource::Wifi => "Wifi",
+                InterfaceControlSource::RotaryEncoder => "Rotary",
+            };
+            let source_label = format!("S: {source: <6}");
+            Text::new(&source_label, Point::new(10, 228), text_style).draw(target)?;
 
             let uptime = self.boot_time.elapsed().unwrap().as_secs();
             let uptime_label = format_uptime_secs(uptime);
-            Text::new(&uptime_label, Point::new(104, 228), text_style).draw(target)?;
+            Text::new(&uptime_label, Point::new(114, 228), text_style).draw(target)?;
 
             let pwm = self
                 .state

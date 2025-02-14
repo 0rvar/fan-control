@@ -8,7 +8,7 @@ use embedded_graphics::{
 use embedded_graphics_simulator::{
     OutputSettingsBuilder, SimulatorDisplay, SimulatorEvent, Window,
 };
-use fan_control_graphics::{Interface, InterfaceState};
+use fan_control_graphics::{Interface, InterfaceControlSource, InterfaceState};
 
 fn main() {
     let mut display = SimulatorDisplay::<Rgb565>::new(Size::new(240, 240));
@@ -20,7 +20,7 @@ fn main() {
     let state = Arc::new(InterfaceState {
         fan_rpm: AtomicU32::new(0),
         fan_pwm: AtomicU32::new(0),
-        target_rpm: AtomicU32::new(0),
+        changed_via: InterfaceControlSource::RotaryEncoder,
     });
     update_state(&state, 0, 0);
     let start = std::time::Instant::now();
@@ -52,7 +52,7 @@ fn update_state(state: &Arc<InterfaceState>, clock_ms: u32, delta_ms: u32) {
     let delta_s = delta_ms as f32 / 1000.0;
 
     // Define fan speed presets (RPM)
-    const SPEED_PRESETS: [u32; 3] = [800, 1400, 2400];
+    const SPEED_PRESETS: [u32; 3] = [800, 1400, 2000];
 
     // Time between target changes (seconds)
     const TARGET_CHANGE_INTERVAL: f32 = 6.0;
@@ -60,7 +60,6 @@ fn update_state(state: &Arc<InterfaceState>, clock_ms: u32, delta_ms: u32) {
     // Update target RPM occasionally
     let preset_index = ((clock_s / TARGET_CHANGE_INTERVAL) as usize) % SPEED_PRESETS.len();
     let target_rpm = SPEED_PRESETS[preset_index];
-    state.target_rpm.store(target_rpm, Ordering::Relaxed);
 
     // Get current RPM
     let current_rpm = state.fan_rpm.load(Ordering::Relaxed) as f32;
@@ -68,7 +67,7 @@ fn update_state(state: &Arc<InterfaceState>, clock_ms: u32, delta_ms: u32) {
 
     // Calculate base PWM for target RPM (assume linear relationship)
     // Maximum RPM (2400) should correspond to PWM 100%
-    const MAX_RPM: f32 = 2400.0;
+    const MAX_RPM: f32 = 2000.0;
     let target_pwm = (target_rpm / MAX_RPM * 100.0).clamp(0.0, 100.0);
 
     // Get current PWM

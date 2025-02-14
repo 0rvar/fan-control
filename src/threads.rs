@@ -1,44 +1,25 @@
 use std::thread::JoinHandle;
 
-use esp_idf_hal::cpu::Core;
-
 pub struct EspThread {
     name: &'static str,
-    stack_kb: usize,
-    priority: u8,
-    pin_to_core: Option<Core>,
+    stack_kb: Option<usize>,
 }
 impl EspThread {
     pub fn new(name: &'static str) -> Self {
         Self {
             name,
-            stack_kb: 4,
-            priority: 10,
-            pin_to_core: None,
+            stack_kb: None,
         }
     }
     pub fn with_stack_size(mut self, stack_kb: usize) -> Self {
-        self.stack_kb = stack_kb;
-        self
-    }
-    pub fn with_priority(mut self, priority: u8) -> Self {
-        self.priority = priority;
-        self
-    }
-    pub fn pin_to_core(mut self, core: Core) -> Self {
-        self.pin_to_core = Some(core);
+        self.stack_kb = Some(stack_kb);
         self
     }
     pub fn spawn<F>(self, func: F) -> JoinHandle<()>
     where
         F: FnOnce() + Send + 'static,
     {
-        let Self {
-            name,
-            stack_kb,
-            priority,
-            pin_to_core,
-        } = self;
+        let Self { name, stack_kb } = self;
 
         // ThreadSpawnConfiguration does _nothing_
         // ThreadSpawnConfiguration {
@@ -51,9 +32,13 @@ impl EspThread {
         // .set()
         // .unwrap();
 
-        let handle = std::thread::Builder::new()
-            .name(name.to_string())
-            .stack_size(stack_kb * 1024)
+        let mut builder = std::thread::Builder::new().name(name.to_string());
+
+        if let Some(stack_kb) = stack_kb {
+            builder = builder.stack_size(stack_kb * 1024);
+        }
+
+        let handle = builder
             .spawn(move || {
                 let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(func));
                 if let Err(err) = result {

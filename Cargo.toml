@@ -35,5 +35,12 @@ dummy-pin = "1.0.0"
 mipidsi = "0.9.0"
 fan-control-graphics = { path = "fan-control-graphics" }
 
+# HTTP server
+embedded-svc = "*"
+serde = "*"
+serde_derive = "*"
+serde_json = "*"
+
 [build-dependencies]
 embuild = "0.33"
+dotenv-build = "*"
